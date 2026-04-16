@@ -41,6 +41,7 @@ fn main() {
                     primary_window: Some(Window {
                         title: "Rusthia".into(),
                         resolution: (1280.0, 720.0).into(),
+                        present_mode: bevy::window::PresentMode::AutoNoVsync,
                         // Accepter les fichiers glissés-déposés
                         ..default()
                     }),
@@ -58,9 +59,23 @@ fn main() {
             game::GamePlugin,
             ui::UiPlugin,
         ))
+        .insert_resource(ClearColor(Color::BLACK))
+        .insert_resource(UiScale(0.5)) // L'interface entière est divisée par 2
         // Gestion du curseur selon l'état
-        .add_systems(Update, manage_cursor_visibility)
+        .add_systems(Update, (manage_cursor_visibility, apply_custom_font))
         .run();
+}
+
+/// Applique dynamiquement la police qui supporte les accents à tous les textes du jeu
+fn apply_custom_font(
+    mut fonts: Query<&mut TextFont, Added<TextFont>>,
+    asset_server: Res<AssetServer>,
+) {
+    if fonts.is_empty() { return; }
+    let handle = asset_server.load("fonts/font.ttf");
+    for mut font in fonts.iter_mut() {
+        font.font = handle.clone();
+    }
 }
 
 /// Cacher et confiner le curseur en jeu, le libérer dans les menus.

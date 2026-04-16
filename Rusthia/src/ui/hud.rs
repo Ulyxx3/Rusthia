@@ -100,28 +100,6 @@ fn setup_hud(mut commands: Commands) {
                         TextFont { font_size: 12.0, ..default() },
                         TextColor(Color::srgba(0.5, 0.5, 0.7, 0.6)),
                     ));
-
-                    // Conteneur de la barre de santé
-                    bottom
-                        .spawn((
-                            Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Px(5.0),
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.5)),
-                        ))
-                        .with_children(|bar| {
-                            bar.spawn((
-                                HealthFill,
-                                Node {
-                                    width: Val::Percent(100.0),
-                                    height: Val::Percent(100.0),
-                                    ..default()
-                                },
-                                BackgroundColor(Color::srgb(0.2, 1.0, 0.4)),
-                            ));
-                        });
                 });
         });
 }
@@ -142,7 +120,6 @@ fn update_hud(
     mut combo_q:    Query<&mut Text, (With<ComboText>, Without<ScoreText>, Without<AccuracyText>, Without<ProgressText>)>,
     mut acc_q:      Query<&mut Text, (With<AccuracyText>, Without<ScoreText>, Without<ComboText>, Without<ProgressText>)>,
     mut progress_q: Query<&mut Text, (With<ProgressText>, Without<ScoreText>, Without<ComboText>, Without<AccuracyText>)>,
-    mut health_q:   Query<(&mut Node, &mut BackgroundColor), With<HealthFill>>,
 ) {
     // Score
     for mut t in score_q.iter_mut() {
@@ -163,21 +140,9 @@ fn update_hud(
         **t = format!("{:.2}%", attempt.accuracy());
     }
 
-    // Temps audio
     for mut t in progress_q.iter_mut() {
         let total_secs = (attempt.progress_ms / 1000.0) as u32;
         **t = format!("{}:{:02}", total_secs / 60, total_secs % 60);
-    }
-
-    // Barre de santé : largeur + couleur
-    for (mut node, mut color) in health_q.iter_mut() {
-        let h = attempt.health as f32 / 100.0;
-        node.width = Val::Percent(attempt.health as f32);
-        *color = if h > 0.5 {
-            BackgroundColor(Color::srgb((1.0 - h) * 2.0, 1.0, 0.2))
-        } else {
-            BackgroundColor(Color::srgb(1.0, h * 2.0, 0.1))
-        };
     }
 }
 

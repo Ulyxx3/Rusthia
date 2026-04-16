@@ -30,6 +30,8 @@ impl Plugin for MainMenuPlugin {
                     handle_settings_toggle,
                     handle_sensitivity_buttons,
                     update_sensitivity_display,
+                    handle_advanced_settings_buttons,
+                    update_advanced_display,
                     update_left_panel_details,
                     handle_left_panel_scroll,
                 )
@@ -74,6 +76,22 @@ impl Plugin for MainMenuPlugin {
 #[derive(Component)] struct HitboxDecBtn;
 #[derive(Component)] struct HitboxIncBtn;
 
+#[derive(Component)] struct ApproachRateDisplay;
+#[derive(Component)] struct ApproachRateDecBtn;
+#[derive(Component)] struct ApproachRateIncBtn;
+
+#[derive(Component)] struct ApproachDistDisplay;
+#[derive(Component)] struct ApproachDistDecBtn;
+#[derive(Component)] struct ApproachDistIncBtn;
+
+#[derive(Component)] struct NoteSizeDisplay;
+#[derive(Component)] struct NoteSizeDecBtn;
+#[derive(Component)] struct NoteSizeIncBtn;
+
+#[derive(Component)] struct FpsShowDisplay;
+#[derive(Component)] struct FpsShowDecBtn;
+#[derive(Component)] struct FpsShowIncBtn;
+
 #[derive(Component)] struct LeftPanelScrollable;
 
 #[derive(Resource, Default)]
@@ -88,169 +106,134 @@ fn setup_main_menu(
     db: Res<MapDatabase>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    // Par défaut, première map sélectionnée
     let selected_idx = if !db.entries.is_empty() { Some(0) } else { None };
     commands.insert_resource(SelectedMapIndex(selected_idx));
-
     commands.spawn((Camera2d::default(), MainMenuRoot));
 
-    commands
-        .spawn((
-            MainMenuRoot,
+    commands.spawn((
+        MainMenuRoot,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            ..default()
+        },
+        BackgroundColor(Color::srgb(0.04, 0.04, 0.08)), // Fond général sombre
+    )).with_children(|root| {
+        
+        // ==================================================================
+        // HEADER (TOP)
+        // ==================================================================
+        root.spawn((
             Node {
                 width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
+                height: Val::Px(70.0),
                 flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::Center,
+                padding: UiRect::horizontal(Val::Px(30.0)),
+                border: UiRect::bottom(Val::Px(2.0)),
                 ..default()
             },
-            BackgroundColor(Color::srgb(0.04, 0.04, 0.08)), // Fond général sombre
-        ))
-        .with_children(|root| {
-            // ==================================================================
+            BorderColor(Color::srgba(0.2, 0.2, 0.4, 0.5)),
+            BackgroundColor(Color::srgba(0.06, 0.06, 0.1, 0.95)),
+        )).with_children(|header| {
+            header.spawn((
+                Text::new("RUSTHIA"),
+                TextFont { font_size: 32.0, ..default() },
+                TextColor(Color::srgb(0.0, 0.8, 1.0)),
+            ));
+
+            header.spawn(Node {
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(20.0),
+                ..default()
+            }).with_children(|btns| {
+                // Bouton Settings
+                btns.spawn((
+                    SettingsToggleBtn, Button,
+                    Node { width: Val::Px(120.0), height: Val::Px(40.0), justify_content: JustifyContent::Center, align_items: AlignItems::Center, border: UiRect::all(Val::Px(1.0)), ..default() },
+                    BackgroundColor(Color::srgba(0.2, 0.2, 0.3, 0.8)), BorderColor(Color::srgba(0.4, 0.4, 0.6, 0.8)),
+                )).with_children(|b| { b.spawn((Text::new("Réglages"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE))); });
+
+                // Bouton Import
+                btns.spawn((
+                    ImportBtn, Button,
+                    Node { width: Val::Px(120.0), height: Val::Px(40.0), justify_content: JustifyContent::Center, align_items: AlignItems::Center, border: UiRect::all(Val::Px(1.0)), ..default() },
+                    BackgroundColor(Color::srgba(0.2, 0.2, 0.3, 0.8)), BorderColor(Color::srgba(0.4, 0.4, 0.6, 0.8)),
+                )).with_children(|b| { b.spawn((Text::new("Importer"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE))); });
+            });
+        });
+
+        // ==================================================================
+        // CONTENU PRINCIPAL
+        // ==================================================================
+        root.spawn(Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0), // Remplit le reste
+            flex_direction: FlexDirection::Row,
+            ..default()
+        }).with_children(|main_content| {
             // PANNEAU GAUCHE : DÉTAILS DE LA MAP
-            // ==================================================================
-            root.spawn((
-                LeftPanelScrollable,
-                Interaction::default(), // pour savoir s'il est hoveré, Optionnel si on scroll globalement
-                bevy::ui::ScrollPosition::default(),
+            main_content.spawn((
                 Node {
                     width: Val::Percent(45.0),
                     height: Val::Percent(100.0),
                     flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    padding: UiRect::all(Val::Px(20.0)),
-                    row_gap: Val::Px(15.0),
+                    align_items: AlignItems::FlexStart,
+                    padding: UiRect::all(Val::Px(30.0)),
+                    row_gap: Val::Px(30.0),
                     border: UiRect::right(Val::Px(2.0)),
-                    overflow: Overflow::clip_y(), // Permet au contenu de dépasser invisiblement
                     ..default()
                 },
                 BorderColor(Color::srgba(0.2, 0.2, 0.4, 0.5)),
             )).with_children(|left_panel| {
-                // Titre RUSTHIA discret en haut à gauche
-                left_panel.spawn((
-                    Text::new("RUSTHIA"),
-                    TextFont { font_size: 20.0, ..default() },
-                    TextColor(Color::srgb(0.0, 0.8, 1.0)),
-                    Node {
-                        align_self: AlignSelf::FlexStart,
-                        margin: UiRect::bottom(Val::Px(5.0)),
-                        ..default()
-                    }
-                ));
-
-                // Image de la jaquette (Cover)
-                left_panel.spawn((
-                    CoverImageDisplay,
-                    ImageNode::default(),
-                    Node {
-                        width: Val::Px(240.0), // Réduit de 300 à 240
-                        height: Val::Px(240.0),
-                        border: UiRect::all(Val::Px(2.0)),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgba(0.1, 0.1, 0.2, 0.5)),
-                    BorderColor(Color::srgb(0.2, 0.5, 0.8)),
-                ));
-
-                // Titre et Artiste
-                left_panel.spawn((
-                    TitleDisplay,
-                    Text::new("Sélectionnez une map"),
-                    TextFont { font_size: 26.0, ..default() }, // Réduction de 32 à 26
-                    TextColor(Color::WHITE),
-                ));
-
-                // Zone Stats (Score, Combo)
+                // Info block (Jaquette + Noms)
+                left_panel.spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(20.0),
+                    align_items: AlignItems::Center,
+                    ..default()
+                }).with_children(|info_block| {
+                    // Jaquette miniature
+                    info_block.spawn((
+                        CoverImageDisplay, ImageNode::default(),
+                        Node { width: Val::Px(120.0), height: Val::Px(120.0), border: UiRect::all(Val::Px(2.0)), ..default() },
+                        BackgroundColor(Color::srgba(0.1, 0.1, 0.2, 0.5)), BorderColor(Color::srgb(0.2, 0.5, 0.8)),
+                    ));
+                    
+                    info_block.spawn((
+                        TitleDisplay,
+                        Text::new("Sélectionnez une map\n--"),
+                        TextFont { font_size: 24.0, ..default() },
+                        TextColor(Color::WHITE),
+                    ));
+                });
+                
+                // Zone Stats
                 left_panel.spawn((
                     StatsDisplay,
                     Text::new("Meilleur Score: --\nMax Combo: --\nPrécision: --"),
-                    TextFont { font_size: 16.0, ..default() }, // Réduction de 18 à 16
+                    TextFont { font_size: 18.0, ..default() },
                     TextColor(Color::srgba(0.8, 0.8, 0.8, 0.9)),
                 ));
 
                 // Bouton JOUER
                 left_panel.spawn((
-                    PlayButton,
-                    Button,
+                    PlayButton, Button,
                     Node {
-                        width: Val::Px(200.0),
-                        height: Val::Px(50.0),
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Center,
-                        margin: UiRect::top(Val::Px(20.0)),
-                        border: UiRect::all(Val::Px(2.0)),
-                        ..default()
+                        width: Val::Px(200.0), height: Val::Px(60.0),
+                        align_items: AlignItems::Center, justify_content: JustifyContent::Center,
+                        margin: UiRect::top(Val::Px(30.0)), border: UiRect::all(Val::Px(2.0)), ..default()
                     },
-                    BackgroundColor(Color::srgb(0.1, 0.6, 0.2)),
-                    BorderColor(Color::srgb(0.2, 0.8, 0.3)),
+                    BackgroundColor(Color::srgb(0.1, 0.6, 0.2)), BorderColor(Color::srgb(0.2, 0.8, 0.3)),
                 )).with_children(|btn| {
-                    btn.spawn((
-                        Text::new("JOUER"),
-                        TextFont { font_size: 24.0, ..default() },
-                        TextColor(Color::WHITE),
-                    ));
+                    btn.spawn((Text::new("JOUER"), TextFont { font_size: 26.0, ..default() }, TextColor(Color::WHITE)));
                 });
-
-                // Boutons Utilitaires : Paramètres & Importer
-                left_panel.spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(20.0),
-                    margin: UiRect::top(Val::Px(20.0)),
-                    ..default()
-                }).with_children(|buttons_row| {
-                    // Settings
-                    buttons_row.spawn((
-                        SettingsToggleBtn,
-                        Button,
-                        Node {
-                            width: Val::Px(120.0),
-                            height: Val::Px(36.0),
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::Center,
-                            border: UiRect::all(Val::Px(1.0)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.2, 0.2, 0.3, 0.8)),
-                        BorderColor(Color::srgba(0.4, 0.4, 0.6, 0.8)),
-                    )).with_children(|btn| {
-                        btn.spawn((
-                            Text::new("⚙ Réglages"),
-                            TextFont { font_size: 14.0, ..default() },
-                            TextColor(Color::WHITE),
-                        ));
-                    });
-
-                    // Importer
-                    buttons_row.spawn((
-                        ImportBtn,
-                        Button,
-                        Node {
-                            width: Val::Px(120.0),
-                            height: Val::Px(36.0),
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::Center,
-                            border: UiRect::all(Val::Px(1.0)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.2, 0.2, 0.3, 0.8)),
-                        BorderColor(Color::srgba(0.4, 0.4, 0.6, 0.8)),
-                    )).with_children(|btn| {
-                        btn.spawn((
-                            Text::new("📂 Importer"),
-                            TextFont { font_size: 14.0, ..default() },
-                            TextColor(Color::WHITE),
-                        ));
-                    });
-                });
-
-                // Panneau Settings Caché (Overlay)
-                settings_panel(left_panel);
             });
 
-            // ==================================================================
             // PANNEAU DROIT : LISTE DES MAPS
-            // ==================================================================
-            root.spawn(Node {
+            main_content.spawn(Node {
                 width: Val::Percent(55.0),
                 height: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
@@ -259,24 +242,21 @@ fn setup_main_menu(
             }).with_children(|right_panel| {
                 right_panel.spawn((
                     Text::new("Collection de Maps"),
-                    TextFont { font_size: 28.0, ..default() },
+                    TextFont { font_size: 24.0, ..default() },
                     TextColor(Color::srgba(1.0, 1.0, 1.0, 0.7)),
-                    Node {
-                        margin: UiRect::bottom(Val::Px(20.0)),
-                        ..default()
-                    }
+                    Node { margin: UiRect::bottom(Val::Px(15.0)), ..default() }
                 ));
 
-                // Conteneur de liste ("ScrollView" rudimentaire, sans clip pour l'instant)
+                // Conteneur de liste défilable
                 right_panel.spawn((
                     MapListContainer,
+                    LeftPanelScrollable, // Réutilisation du composant de défilement molette
+                    Interaction::default(),
+                    bevy::ui::ScrollPosition::default(),
                     Node {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(10.0),
-                        overflow: Overflow::clip_y(),
-                        ..default()
+                        width: Val::Percent(100.0), height: Val::Percent(100.0),
+                        flex_direction: FlexDirection::Column, row_gap: Val::Px(10.0),
+                        overflow: Overflow::clip_y(), ..default()
                     }
                 )).with_children(|list| {
                     if db.entries.is_empty() {
@@ -289,29 +269,21 @@ fn setup_main_menu(
                         // Génération des boutons pour chaque map trouvée
                         for (i, entry) in db.entries.iter().enumerate() {
                             list.spawn((
-                                MapButton(i),
-                                Button,
+                                MapButton(i), Button,
                                 Node {
-                                    width: Val::Percent(100.0),
-                                    height: Val::Px(60.0),
-                                    flex_direction: FlexDirection::Column,
-                                    justify_content: JustifyContent::Center,
-                                    padding: UiRect::horizontal(Val::Px(15.0)),
-                                    border: UiRect::all(Val::Px(1.0)),
-                                    ..default()
+                                    width: Val::Percent(100.0), height: Val::Px(60.0),
+                                    flex_direction: FlexDirection::Column, justify_content: JustifyContent::Center,
+                                    padding: UiRect::horizontal(Val::Px(15.0)), border: UiRect::all(Val::Px(1.0)), ..default()
                                 },
-                                BackgroundColor(Color::srgba(0.1, 0.1, 0.15, 0.9)),
-                                BorderColor(Color::srgba(0.3, 0.3, 0.4, 0.5)),
+                                BackgroundColor(Color::srgba(0.1, 0.1, 0.15, 0.9)), BorderColor(Color::srgba(0.3, 0.3, 0.4, 0.5)),
                             )).with_children(|btn| {
                                 btn.spawn((
                                     Text::new(entry.data.pretty_title()),
-                                    TextFont { font_size: 18.0, ..default() },
-                                    TextColor(Color::WHITE),
+                                    TextFont { font_size: 18.0, ..default() }, TextColor(Color::WHITE),
                                 ));
                                 btn.spawn((
                                     Text::new(format!("Difficulté: {}", &entry.data.difficulty_name)),
-                                    TextFont { font_size: 12.0, ..default() },
-                                    TextColor(Color::srgba(0.6, 0.6, 0.8, 0.8)),
+                                    TextFont { font_size: 12.0, ..default() }, TextColor(Color::srgba(0.6, 0.6, 0.8, 0.8)),
                                 ));
                             });
                         }
@@ -319,267 +291,96 @@ fn setup_main_menu(
                 });
             });
         });
+
+        // ==================================================================
+        // PANNEAU OVERLAY SETTINGS
+        // ==================================================================
+        settings_panel(root);
+    });
 }
 
 fn settings_panel(parent: &mut ChildBuilder) {
     parent
         .spawn((
             SettingsPanel,
+            LeftPanelScrollable,
+            Interaction::default(),
+            bevy::ui::ScrollPosition::default(),
             Node {
                 display: Display::None,
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
-                row_gap: Val::Px(8.0), // Gap réduit
-                padding: UiRect::all(Val::Px(12.0)), // Padding réduit
-                border: UiRect::all(Val::Px(1.0)),
-                margin: UiRect::top(Val::Px(10.0)), // Margin réduit
+                justify_content: JustifyContent::FlexStart,
+                padding: UiRect::vertical(Val::Px(60.0)),
+                row_gap: Val::Px(12.0),
+                overflow: Overflow::clip_y(),
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.04, 0.04, 0.12, 0.95)),
-            BorderColor(Color::srgba(0.3, 0.3, 0.6, 0.8)),
+            BackgroundColor(Color::srgba(0.02, 0.02, 0.05, 0.98)),
         ))
         .with_children(|panel| {
             panel.spawn((
-                Text::new("⚙ Paramètres de Jeu"),
-                TextFont { font_size: 16.0, ..default() },
-                TextColor(Color::srgba(0.8, 0.8, 0.9, 0.9)),
-                Node { margin: UiRect::bottom(Val::Px(10.0)), ..default() }
+                Text::new("⚙ PARAMÈTRES RUSTHIA"),
+                TextFont { font_size: 32.0, ..default() },
+                TextColor(Color::WHITE),
+                Node { margin: UiRect::bottom(Val::Px(20.0)), ..default() }
             ));
 
-            panel
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(14.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Text::new("Sensibilité Pointeur"),
-                        TextFont { font_size: 14.0, ..default() },
-                        TextColor(Color::srgba(0.75, 0.75, 0.9, 0.9)),
-                    ));
-                    row.spawn((
-                        SensDecBtn,
-                        Button,
-                        Node {
-                            width: Val::Px(28.0),
-                            height: Val::Px(28.0),
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::Center,
-                            border: UiRect::all(Val::Px(1.0)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)),
-                        BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5)),
-                    ))
-                    .with_children(|b| {
-                        b.spawn((Text::new("−"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE)));
-                    });
+            create_settings_row(panel, "Sensibilité Pointeur", SensDecBtn, SensDisplay, "2.00", SensIncBtn);
+            create_settings_row(panel, "Taille du Curseur", CursorScaleDecBtn, CursorScaleDisplay, "0.12", CursorScaleIncBtn);
+            create_settings_row(panel, "Force Parallaxe", ParallaxDecBtn, ParallaxDisplay, "0.15", ParallaxIncBtn);
+            create_settings_row(panel, "Forme des Notes", NoteShapeDecBtn, NoteShapeDisplay, "Squircle", NoteShapeIncBtn);
+            create_settings_row(panel, "Taille Hitbox", HitboxDecBtn, HitboxDisplay, "0.70", HitboxIncBtn);
+            create_settings_row(panel, "Vitesse Approche", ApproachRateDecBtn, ApproachRateDisplay, "40.0", ApproachRateIncBtn);
+            create_settings_row(panel, "Distance Notes", ApproachDistDecBtn, ApproachDistDisplay, "30.0", ApproachDistIncBtn);
+            create_settings_row(panel, "Taille des Notes", NoteSizeDecBtn, NoteSizeDisplay, "0.41", NoteSizeIncBtn);
+            create_settings_row(panel, "Afficher FPS", FpsShowDecBtn, FpsShowDisplay, "Oui", FpsShowIncBtn);
 
-                    row.spawn((
-                        SensDisplay,
-                        Text::new("2.0"),
-                        TextFont { font_size: 16.0, ..default() },
-                        TextColor(Color::srgb(0.0, 0.85, 1.0)),
-                        Node { width: Val::Px(36.0), justify_content: JustifyContent::Center, ..default() },
-                    ));
-
-                    row.spawn((
-                        SensIncBtn,
-                        Button,
-                        Node {
-                            width: Val::Px(28.0),
-                            height: Val::Px(28.0),
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::Center,
-                            border: UiRect::all(Val::Px(1.0)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)),
-                        BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5)),
-                    ))
-                    .with_children(|b| {
-                        b.spawn((Text::new("+"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE)));
-                    });
-                });
-
-            // Ligne pour la taille du curseur
-            panel
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(14.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Text::new("Taille du Curseur"),
-                        TextFont { font_size: 14.0, ..default() },
-                        TextColor(Color::srgba(0.75, 0.75, 0.9, 0.9)),
-                    ));
-                    row.spawn((
-                        CursorScaleDecBtn,
-                        Button,
-                        Node {
-                            width: Val::Px(28.0), height: Val::Px(28.0),
-                            align_items: AlignItems::Center, justify_content: JustifyContent::Center,
-                            border: UiRect::all(Val::Px(1.0)), ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)),
-                        BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5)),
-                    ))
-                    .with_children(|b| {
-                        b.spawn((Text::new("−"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE)));
-                    });
-
-                    row.spawn((
-                        CursorScaleDisplay,
-                        Text::new("0.12"),
-                        TextFont { font_size: 16.0, ..default() },
-                        TextColor(Color::srgb(0.0, 0.85, 1.0)),
-                        Node { width: Val::Px(36.0), justify_content: JustifyContent::Center, ..default() },
-                    ));
-
-                    row.spawn((
-                        CursorScaleIncBtn,
-                        Button,
-                        Node {
-                            width: Val::Px(28.0), height: Val::Px(28.0),
-                            align_items: AlignItems::Center, justify_content: JustifyContent::Center,
-                            border: UiRect::all(Val::Px(1.0)), ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)),
-                        BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5)),
-                    ))
-                    .with_children(|b| {
-                        b.spawn((Text::new("+"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE)));
-                    });
-                });
-
-             // Ligne pour la parallaxe
-             panel
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(14.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Text::new("Force Parallaxe"),
-                        TextFont { font_size: 14.0, ..default() },
-                        TextColor(Color::srgba(0.75, 0.75, 0.9, 0.9)),
-                    ));
-                    row.spawn((
-                        ParallaxDecBtn,
-                        Button,
-                        Node {
-                            width: Val::Px(28.0), height: Val::Px(28.0),
-                            align_items: AlignItems::Center, justify_content: JustifyContent::Center,
-                            border: UiRect::all(Val::Px(1.0)), ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)),
-                        BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5)),
-                    ))
-                    .with_children(|b| {
-                        b.spawn((Text::new("−"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE)));
-                    });
-
-                    row.spawn((
-                        ParallaxDisplay,
-                        Text::new("0.15"),
-                        TextFont { font_size: 16.0, ..default() },
-                        TextColor(Color::srgb(0.0, 0.85, 1.0)),
-                        Node { width: Val::Px(36.0), justify_content: JustifyContent::Center, ..default() },
-                    ));
-
-                    row.spawn((
-                        ParallaxIncBtn,
-                        Button,
-                        Node {
-                            width: Val::Px(28.0), height: Val::Px(28.0),
-                            align_items: AlignItems::Center, justify_content: JustifyContent::Center,
-                            border: UiRect::all(Val::Px(1.0)), ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)),
-                        BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5)),
-                    ))
-                    .with_children(|b| {
-                        b.spawn((Text::new("+"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE)));
-                    });
-                });
-
-             // Ligne pour le style de Note (Forme)
-             panel
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(14.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Text::new("Forme des Notes"),
-                        TextFont { font_size: 14.0, ..default() },
-                        TextColor(Color::srgba(0.75, 0.75, 0.9, 0.9)),
-                    ));
-                    row.spawn((
-                        NoteShapeDecBtn, Button,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0), align_items: AlignItems::Center, justify_content: JustifyContent::Center, border: UiRect::all(Val::Px(1.0)), ..default() },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)), BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5)),
-                    )).with_children(|b| { b.spawn((Text::new("−"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE))); });
-
-                    row.spawn((
-                        NoteShapeDisplay,
-                        Text::new("Squircle"),
-                        TextFont { font_size: 16.0, ..default() },
-                        TextColor(Color::srgb(0.0, 0.85, 1.0)),
-                        Node { width: Val::Px(80.0), justify_content: JustifyContent::Center, ..default() },
-                    ));
-
-                    row.spawn((
-                        NoteShapeIncBtn, Button,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0), align_items: AlignItems::Center, justify_content: JustifyContent::Center, border: UiRect::all(Val::Px(1.0)), ..default() },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)), BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5)),
-                    )).with_children(|b| { b.spawn((Text::new("+"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE))); });
-                });
-
-             // Ligne pour la taille de la Hitbox
-             panel
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(14.0),
-                    ..default()
-                })
-                .with_children(|row| {
-                    row.spawn((
-                        Text::new("Taille Hitbox"),
-                        TextFont { font_size: 14.0, ..default() },
-                        TextColor(Color::srgba(0.75, 0.75, 0.9, 0.9)),
-                    ));
-                    row.spawn((
-                        HitboxDecBtn, Button,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0), align_items: AlignItems::Center, justify_content: JustifyContent::Center, border: UiRect::all(Val::Px(1.0)), ..default() },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)), BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5)),
-                    )).with_children(|b| { b.spawn((Text::new("−"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE))); });
-
-                    row.spawn((
-                        HitboxDisplay,
-                        Text::new("0.35"),
-                        TextFont { font_size: 16.0, ..default() },
-                        TextColor(Color::srgb(0.0, 0.85, 1.0)),
-                        Node { width: Val::Px(36.0), justify_content: JustifyContent::Center, ..default() },
-                    ));
-
-                    row.spawn((
-                        HitboxIncBtn, Button,
-                        Node { width: Val::Px(28.0), height: Val::Px(28.0), align_items: AlignItems::Center, justify_content: JustifyContent::Center, border: UiRect::all(Val::Px(1.0)), ..default() },
-                        BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)), BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5)),
-                    )).with_children(|b| { b.spawn((Text::new("+"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE))); });
-                });
+            // Bouton FERMER les paramètres
+            panel.spawn((
+                SettingsToggleBtn, Button,
+                Node {
+                    width: Val::Px(200.0), height: Val::Px(50.0),
+                    margin: UiRect::top(Val::Px(40.0)),
+                    justify_content: JustifyContent::Center, align_items: AlignItems::Center,
+                    border: UiRect::all(Val::Px(1.0)), ..default()
+                },
+                BackgroundColor(Color::srgba(0.6, 0.2, 0.2, 0.8)), BorderColor(Color::srgba(0.8, 0.3, 0.3, 0.8)),
+            )).with_children(|btn| {
+                btn.spawn((Text::new("FERMER"), TextFont { font_size: 20.0, ..default() }, TextColor(Color::WHITE)));
+            });
         });
+}
+
+fn create_settings_row<D: Bundle, V: Bundle, I: Bundle>(
+    p: &mut ChildBuilder,
+    label: &str,
+    dec_comp: D,
+    val_comp: V,
+    val_text: &str,
+    inc_comp: I,
+) {
+    let field_style = Node {
+        flex_direction: FlexDirection::Row,
+        align_items: AlignItems::Center,
+        column_gap: Val::Px(20.0),
+        margin: UiRect::bottom(Val::Px(10.0)),
+        ..default()
+    };
+    let text_style = TextFont { font_size: 18.0, ..default() };
+    let btn_size = Node { width: Val::Px(40.0), height: Val::Px(40.0), align_items: AlignItems::Center, justify_content: JustifyContent::Center, border: UiRect::all(Val::Px(1.0)), ..default() };
+
+    p.spawn(field_style.clone()).with_children(|row| {
+        row.spawn((Text::new(label), text_style.clone(), TextColor(Color::srgba(0.8, 0.8, 0.9, 0.9)), Node { width: Val::Px(200.0), ..default() }));
+        row.spawn((dec_comp, Button, btn_size.clone(), BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)), BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5))))
+            .with_children(|b| { b.spawn((Text::new("−"), text_style.clone(), TextColor(Color::WHITE))); });
+        row.spawn((val_comp, Text::new(val_text), text_style.clone(), TextColor(Color::srgb(0.0, 0.85, 1.0)), Node { width: Val::Px(80.0), justify_content: JustifyContent::Center, ..default() }));
+        row.spawn((inc_comp, Button, btn_size.clone(), BackgroundColor(Color::srgba(0.1, 0.1, 0.25, 0.8)), BorderColor(Color::srgba(0.2, 0.2, 0.5, 0.5))))
+            .with_children(|b| { b.spawn((Text::new("+"), text_style.clone(), TextColor(Color::WHITE))); });
+    });
 }
 
 fn cleanup_main_menu(mut commands: Commands, query: Query<Entity, With<MainMenuRoot>>) {
@@ -594,7 +395,7 @@ fn cleanup_main_menu(mut commands: Commands, query: Query<Entity, With<MainMenuR
 
 fn handle_left_panel_scroll(
     mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
-    mut query: Query<(&mut bevy::ui::ScrollPosition, &Interaction), With<LeftPanelScrollable>>,
+    mut query: Query<(&mut bevy::ui::ScrollPosition, &Interaction, &Node), With<LeftPanelScrollable>>,
 ) {
     let mut dy = 0.0;
     for event in mouse_wheel.read() {
@@ -602,9 +403,12 @@ fn handle_left_panel_scroll(
         dy += event.y * -30.0;
     }
     if dy != 0.0 {
-        // Si on hover le panneau gauche, on scroll
-        for (mut scroll, interaction) in query.iter_mut() {
-            if *interaction == Interaction::Hovered {
+        for (mut scroll, interaction, node) in query.iter_mut() {
+            // Si c'est le SettingsPanel (Absolute) et qu'il est visible, on veut toujours scroller
+            // car le hover peut être accaparé par l'un de ses nombreux boutons enfants.
+            let is_settings = node.position_type == PositionType::Absolute && node.display == Display::Flex;
+            
+            if *interaction == Interaction::Hovered || is_settings {
                 scroll.offset_y += dy;
                 // Empêcher d'aller en négatif (haut du scroll)
                 if scroll.offset_y < 0.0 {
@@ -840,4 +644,55 @@ fn update_sensitivity_display(
         };
     }
     for mut text in q_hitbox.iter_mut() { **text = format!("{:.2}", settings.hitbox_size); }
+}
+
+fn handle_advanced_settings_buttons(
+    mut settings: ResMut<GameSettings>,
+    dec_ar_q: Query<&Interaction, (With<ApproachRateDecBtn>, Changed<Interaction>)>,
+    inc_ar_q: Query<&Interaction, (With<ApproachRateIncBtn>, Changed<Interaction>)>,
+    dec_ad_q: Query<&Interaction, (With<ApproachDistDecBtn>, Changed<Interaction>)>,
+    inc_ad_q: Query<&Interaction, (With<ApproachDistIncBtn>, Changed<Interaction>)>,
+    dec_ns_q: Query<&Interaction, (With<NoteSizeDecBtn>, Changed<Interaction>)>,
+    inc_ns_q: Query<&Interaction, (With<NoteSizeIncBtn>, Changed<Interaction>)>,
+    dec_fps_q: Query<&Interaction, (With<FpsShowDecBtn>, Changed<Interaction>)>,
+    inc_fps_q: Query<&Interaction, (With<FpsShowIncBtn>, Changed<Interaction>)>,
+) {
+    for interaction in dec_ar_q.iter() {
+        if *interaction == Interaction::Pressed { settings.approach_rate = (settings.approach_rate - 0.5).max(1.0); }
+    }
+    for interaction in inc_ar_q.iter() {
+        if *interaction == Interaction::Pressed { settings.approach_rate = (settings.approach_rate + 0.5).min(50.0); }
+    }
+    for interaction in dec_ad_q.iter() {
+        if *interaction == Interaction::Pressed { settings.approach_distance = (settings.approach_distance - 1.0).max(1.0); }
+    }
+    for interaction in inc_ad_q.iter() {
+        if *interaction == Interaction::Pressed { settings.approach_distance = (settings.approach_distance + 1.0).min(50.0); }
+    }
+    for interaction in dec_ns_q.iter() {
+        if *interaction == Interaction::Pressed { settings.note_size = (settings.note_size - 0.05).max(0.05); }
+    }
+    for interaction in inc_ns_q.iter() {
+        if *interaction == Interaction::Pressed { settings.note_size = (settings.note_size + 0.05).min(2.0); }
+    }
+    for interaction in dec_fps_q.iter() {
+        if *interaction == Interaction::Pressed { settings.show_fps = !settings.show_fps; }
+    }
+    for interaction in inc_fps_q.iter() {
+        if *interaction == Interaction::Pressed { settings.show_fps = !settings.show_fps; }
+    }
+}
+
+fn update_advanced_display(
+    settings: Res<GameSettings>,
+    mut q_ar: Query<&mut Text, With<ApproachRateDisplay>>,
+    mut q_ad: Query<&mut Text, (With<ApproachDistDisplay>, Without<ApproachRateDisplay>)>,
+    mut q_ns: Query<&mut Text, (With<NoteSizeDisplay>, Without<ApproachRateDisplay>, Without<ApproachDistDisplay>)>,
+    mut q_fps: Query<&mut Text, (With<FpsShowDisplay>, Without<ApproachRateDisplay>, Without<ApproachDistDisplay>, Without<NoteSizeDisplay>)>,
+) {
+    if !settings.is_changed() { return; }
+    for mut text in q_ar.iter_mut() { **text = format!("{:.1}", settings.approach_rate); }
+    for mut text in q_ad.iter_mut() { **text = format!("{:.1}", settings.approach_distance); }
+    for mut text in q_ns.iter_mut() { **text = format!("{:.2}", settings.note_size); }
+    for mut text in q_fps.iter_mut() { **text = if settings.show_fps { "Oui".to_string() } else { "Non".to_string() }; }
 }

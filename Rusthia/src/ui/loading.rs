@@ -22,12 +22,16 @@ pub struct MapListEntry {
 
 pub struct LoadingPlugin;
 
+#[derive(Component)]
+struct LoadingScreen;
+
 impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut App) {
         app
             .insert_resource(MapDatabase::default())
             .add_systems(OnEnter(GameState::Loading), start_loading)
-            .add_systems(Update, process_loading.run_if(in_state(GameState::Loading)));
+            .add_systems(Update, process_loading.run_if(in_state(GameState::Loading)))
+            .add_systems(OnExit(GameState::Loading), cleanup_loading_ui);
     }
 }
 
@@ -37,15 +41,19 @@ fn start_loading(mut commands: Commands) {
 
     commands.spawn((
         Camera2d::default(),
+        LoadingScreen,
     ));
 
-    commands.spawn(Node {
-        width: Val::Percent(100.0),
-        height: Val::Percent(100.0),
-        align_items: AlignItems::Center,
-        justify_content: JustifyContent::Center,
-        ..default()
-    }).with_children(|parent| {
+    commands.spawn((
+        LoadingScreen,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..default()
+        }
+    )).with_children(|parent| {
         parent.spawn((
             Text::new("Recherche des maps..."),
             TextFont { font_size: 40.0, ..default() },
@@ -94,4 +102,10 @@ fn process_loading(
     
     // Sortir rapidement vers le Song Select (MainMenu)
     next_state.set(GameState::MainMenu);
+}
+
+fn cleanup_loading_ui(mut commands: Commands, query: Query<Entity, With<LoadingScreen>>) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
 }

@@ -10,11 +10,11 @@ use bevy::prelude::*;
 /// Valeurs par défaut calquées sur les settings originaux de Rhythia
 #[derive(Resource, Clone)]
 pub struct GameSettings {
-    /// Vitesse d'approche (approach rate) — default: 12.0
+    /// Vitesse d'approche (approach rate) — default: 40.0
     /// Contrôle la vitesse à laquelle les notes arrivent
     pub approach_rate: f32,
 
-    /// Distance d'approche (approach distance) en unités monde — default: 10.0
+    /// Distance d'approche (approach distance) en unités monde — default: 30.0
     /// Distance maximale depuis laquelle les notes sont visibles
     pub approach_distance: f32,
 
@@ -60,15 +60,18 @@ pub struct GameSettings {
 
     /// Volume SFX [0.0, 1.0]
     pub volume_sfx: f32,
+
+    /// Afficher le compteur de FPS
+    pub show_fps: bool,
 }
 
 impl Default for GameSettings {
     fn default() -> Self {
         Self {
-            approach_rate: 12.0,
-            approach_distance: 10.0,
+            approach_rate: 40.0,       // Très rapide !
+            approach_distance: 30.0,   // Un peu plus loin
             fade_in: 50.0,
-            note_size: 0.25,
+            note_size: 0.41,           // 1.1x de 0.38
             note_opacity: 1.0,
             pushback: false,
             ghost_mode: false,
@@ -76,11 +79,12 @@ impl Default for GameSettings {
             sensitivity: 2.0,
             cursor_size: 0.12,
             parallax_strength: 0.15,
-            note_shape: 1, // par défaut on met squircle comme demandé
-            hitbox_size: 0.35, // hitbox plus grande (défaut avant: 0.18)
+            note_shape: 1,
+            hitbox_size: 0.70,         // Double de 0.35
             volume_master: 1.0,
             volume_music: 1.0,
             volume_sfx: 1.0,
+            show_fps: true,
         }
     }
 }
@@ -162,8 +166,8 @@ impl Default for AttemptState {
     fn default() -> Self {
         Self {
             progress_ms: -3000.0,   // Début 3 secondes avant le beat zéro
-            health: 100.0,
-            health_step: 15.0,
+            health: 300.0,
+            health_step: 10.0,
             score: 0,
             combo: 0,
             best_combo: 0,

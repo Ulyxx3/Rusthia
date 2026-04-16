@@ -43,6 +43,9 @@ pub struct NoteComponent {
 #[derive(Component)]
 pub struct CursorVisual;
 
+#[derive(Component)]
+pub struct HealthBar3d;
+
 /// Marqueur le fond de grille
 #[derive(Component)]
 pub struct GridBackground;
@@ -117,10 +120,10 @@ pub fn setup_game_scene(
 
     let half = GRID_SIZE / 2.0;
 
-    // --- Fond de la grille ---
+    // --- Fond de la grille (doit être transparent pour voir les notes arriver !) ---
     let grid_mat = materials.add(StandardMaterial {
-        base_color: Color::srgba(0.02, 0.02, 0.08, 0.95),
-        emissive: LinearRgba::new(0.005, 0.005, 0.04, 1.0),
+        base_color: Color::srgba(0.02, 0.02, 0.04, 0.1), // très sombre et très transparent
+        emissive: LinearRgba::new(0.02, 0.02, 0.05, 1.0), // très légère lueur bleue pour deviner le cadre
         unlit: true,
         alpha_mode: AlphaMode::Blend,
         ..default()
@@ -131,6 +134,40 @@ pub fn setup_game_scene(
         MeshMaterial3d(grid_mat),
         Transform::from_xyz(0.0, 0.0, -0.02),
         GridBackground,
+    ));
+
+    // --- Lignes de contour du cadre (Neon Bleu/Cyan) ---
+    let line_mat = materials.add(StandardMaterial {
+        base_color: Color::srgba(0.0, 0.5, 1.0, 0.8),
+        emissive: LinearRgba::new(0.0, 0.8, 2.0, 1.0),
+        unlit: true,
+        ..default()
+    });
+    let thickness = 0.03;
+    let size = GRID_SIZE;
+    
+    // Top
+    commands.spawn((Mesh3d(meshes.add(Rectangle::new(size, thickness))), MeshMaterial3d(line_mat.clone()), Transform::from_xyz(0.0, half, -0.01)));
+    // Bottom
+    commands.spawn((Mesh3d(meshes.add(Rectangle::new(size, thickness))), MeshMaterial3d(line_mat.clone()), Transform::from_xyz(0.0, -half, -0.01)));
+    // Left
+    commands.spawn((Mesh3d(meshes.add(Rectangle::new(thickness, size))), MeshMaterial3d(line_mat.clone()), Transform::from_xyz(-half, 0.0, -0.01)));
+    // Right
+    commands.spawn((Mesh3d(meshes.add(Rectangle::new(thickness, size))), MeshMaterial3d(line_mat.clone()), Transform::from_xyz(half, 0.0, -0.01)));
+
+    // --- Barre de santé 3D au bas du cadre ---
+    let hp_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.2, 1.0, 0.4),
+        emissive: LinearRgba::new(0.2, 1.0, 0.4, 2.0),
+        unlit: true,
+        ..default()
+    });
+    commands.spawn((
+        HealthBar3d,
+        Mesh3d(meshes.add(Rectangle::new(1.0, thickness * 2.0))), // Base width 1.0, scaled by Transform
+        MeshMaterial3d(hp_mat),
+        Transform::from_xyz(0.0, -half - thickness * 2.0, -0.01)
+            .with_scale(Vec3::new(GRID_SIZE, 1.0, 1.0)),
     ));
 
     // =========================================================================
@@ -157,9 +194,7 @@ pub fn setup_game_scene(
 
     // --- Génération de la texture de Note (Squircle/Cercle) ---
     let shape = settings.note_shape;
-    let note_tex_handle = if shape == 0 {
-        Handle::default()
-    } else {
+    let note_tex_handle = {
         let size = 64;
         let mut data = vec![0u8; size * size * 4];
 
@@ -169,29 +204,29 @@ pub fn setup_game_scene(
                 let cx = (x as i32 - size as i32 / 2) as f32 / (size as f32 / 2.0);
                 let cy = (y as i32 - size as i32 / 2) as f32 / (size as f32 / 2.0);
 
-                let mut inside = false;
                 let mut border = false;
 
-                if shape == 1 {
+                if shape == 0 {
+                    // Carré à bordure
+                    let dx = cx.abs();
+                    let dy = cy.abs();
+                    // On affiche le contour si on est près des bords
+                    if dx < 1.0 && dy < 1.0 && (dx > 0.80 || dy > 0.80) { border = true; }
+                } else if shape == 1 {
                     // Squircle approx: x^4 + y^4 = 1
                     let d = cx.powi(4) + cy.powi(4);
-                    if d < 1.0 { inside = true; }
-                    if d > 0.5 && d < 1.0 { border = true; }
-                } else {
-                    // Circle: x^2 + y^2 = 1
-                    let d = cx.powi(2) + cy.powi(2);
-                    if d < 1.0 { inside = true; }
                     if d > 0.65 && d < 1.0 { border = true; }
+                } else {
+                    // Cercle: x^2 + y^2 = 1
+                    let d = cx.powi(2) + cy.powi(2);
+                    if d > 0.75 && d < 1.0 { border = true; }
                 }
 
                 if border {
                     // Contour opaque blanc
                     data[idx] = 255; data[idx+1] = 255; data[idx+2] = 255; data[idx+3] = 255;
-                } else if inside {
-                    // Intérieur semi-transparent
-                    data[idx] = 255; data[idx+1] = 255; data[idx+2] = 255; data[idx+3] = 20;
                 } else {
-                    // Extérieur transparent
+                    // Intérieur et extérieur completement transparents
                     data[idx] = 0; data[idx+1] = 0; data[idx+2] = 0; data[idx+3] = 0;
                 }
             }
@@ -213,10 +248,33 @@ pub fn setup_game_scene(
 /// Nettoyage de la scène de jeu
 pub fn cleanup_game_scene(
     mut commands: Commands,
-    query: Query<Entity, Or<(With<NoteMarker>, With<Camera3d>, With<GridBackground>, With<CursorVisual>)>>,
+    query: Query<Entity, Or<(With<NoteMarker>, With<Camera3d>, With<GridBackground>, With<CursorVisual>, With<HealthBar3d>)>>,
 ) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
+    }
+}
+
+pub fn update_health_bar_3d(
+    attempt: Res<AttemptState>,
+    mut q_hp: Query<(&mut Transform, &MeshMaterial3d<StandardMaterial>), With<HealthBar3d>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (mut transform, mat_handle) in q_hp.iter_mut() {
+        let h = attempt.health as f32 / 100.0;
+        // Largeur varie de 0.0 à GRID_SIZE
+        transform.scale.x = (h * GRID_SIZE).max(0.001);
+        
+        let color = if h > 0.5 {
+            Color::srgb((1.0 - h) * 2.0, 1.0, 0.2)
+        } else {
+            Color::srgb(1.0, h * 2.0, 0.1)
+        };
+        
+        if let Some(mat) = materials.get_mut(mat_handle) {
+            mat.base_color = color;
+            mat.emissive = LinearRgba::from(color) * 2.0;
+        }
     }
 }
 

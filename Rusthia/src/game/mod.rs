@@ -17,7 +17,7 @@ use spawner::{NoteHitEvent, NoteMissEvent};
 use spawner::{
     setup_game_scene, cleanup_game_scene,
     spawn_notes, move_notes, despawn_processed_notes,
-    update_cursor_visual, update_camera_parallax,
+    update_cursor_visual, update_camera_parallax, update_health_bar_3d,
 };
 use crate::{
     GameState,
@@ -59,6 +59,11 @@ impl Plugin for GamePlugin {
                 (cleanup_game_scene, stop_game_audio).chain(),
             )
 
+            .add_systems(
+                OnEnter(GameState::Results),
+                save_score_on_end,
+            )
+
             // --- Boucle principale : ordre strict par .chain() ---
             .add_systems(
                 Update,
@@ -72,6 +77,7 @@ impl Plugin for GamePlugin {
                     despawn_processed_notes, // 6. Nettoyer les notes passées
                     check_auto_hit,          // 7. Détecter les hits auto
                     update_health,           // 8. Mettre à jour santé/score
+                    update_health_bar_3d,    // 8.5 Mettre à jour le Mesh de la barre
                     handle_pause_input,      // 9. Pause
                     check_game_end,          // 10. Détecter la fin de la map
                 )
@@ -161,7 +167,6 @@ fn check_game_end(
     map_res: Option<Res<ActiveMap>>,
     kira: Res<KiraManager>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut save_manager: ResMut<save::SaveManager>,
 ) {
     if attempt.failed { return; } // Déjà géré par update_health
     let Some(map) = map_res else { return };
@@ -172,10 +177,18 @@ fn check_game_end(
 
     if all_notes_done && audio_done && attempt.audio_started {
         info!("Map terminée ! Score:{} Acc:{:.2}%", attempt.score, attempt.accuracy());
-        
-        // Sauvegarder les stats si nouveau record
-        save_manager.submit_result(&map.0.id, attempt.score, attempt.best_combo, attempt.accuracy());
-        
         next_state.set(GameState::Results);
+    }
+}
+
+/// Sauvegarde le score que la partie soit gagnée ou perdue
+fn save_score_on_end(
+    mut save_manager: ResMut<save::SaveManager>,
+    attempt: Res<AttemptState>,
+    map_res: Option<Res<ActiveMap>>,
+) {
+    if let Some(map) = map_res {
+        save_manager.submit_result(&map.0.id, attempt.score, attempt.best_combo, attempt.accuracy());
+        info!("Score enregistré : {}", attempt.score);
     }
 }
