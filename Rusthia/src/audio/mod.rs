@@ -45,6 +45,8 @@ pub struct KiraManager {
     pub volume_master: f64,
     /// Volume de la musique [0.0, 1.0]
     pub volume_music: f64,
+    /// Volume SFX [0.0, 1.0]
+    pub volume_sfx: f64,
 }
 
 impl KiraManager {
@@ -57,6 +59,7 @@ impl KiraManager {
             song_handle: None,
             volume_master: 1.0,
             volume_music: 1.0,
+            volume_sfx: 1.0,
         }
     }
 
@@ -104,6 +107,21 @@ impl KiraManager {
     /// Is a song currently playing?
     pub fn is_playing(&self) -> bool {
         self.song_handle.is_some()
+    }
+
+    /// Jouer un son SFX court en parallèle de la musique principale.
+    /// Le handle n'est pas stocké — Kira libère le son automatiquement.
+    /// Équivalent de `SoundManager.PlaySFX()` dans l'original.
+    pub fn play_sfx(&mut self, audio_bytes: &[u8]) {
+        let cursor = Cursor::new(audio_bytes.to_vec());
+        let Ok(sound_data) = StaticSoundData::from_cursor(cursor) else {
+            warn!("Impossible de décoder le SFX");
+            return;
+        };
+        let vol = (self.volume_master * self.volume_sfx) as f32;
+        let settings = StaticSoundSettings::default().volume(vol);
+        // On ignore l'erreur si trop de sons simultanés
+        let _ = self.manager.play(sound_data.with_settings(settings));
     }
 }
 

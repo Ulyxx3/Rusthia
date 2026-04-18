@@ -30,12 +30,15 @@ fn setup_results(
 ) {
     let accuracy = attempt.accuracy();
     let grade = match accuracy as u32 {
-        95..=100 => ("S",  Color::srgb(1.0,  0.85, 0.0)),
-        88..=94  => ("A",  Color::srgb(0.2,  1.0,  0.3)),
-        75..=87  => ("B",  Color::srgb(0.2,  0.5,  1.0)),
-        60..=74  => ("C",  Color::srgb(0.8,  0.6,  0.0)),
-        _        => ("F",  Color::srgb(1.0,  0.1,  0.1)),
+        100       => ("SS", Color::srgb(0.5, 1.0, 1.0)),
+        95..=99   => ("S",  Color::srgb(1.0,  0.85, 0.0)),
+        88..=94   => ("A",  Color::srgb(0.2,  1.0,  0.3)),
+        75..=87   => ("B",  Color::srgb(0.2,  0.5,  1.0)),
+        60..=74   => ("C",  Color::srgb(0.8,  0.6,  0.0)),
+        _         => ("F",  Color::srgb(1.0,  0.1,  0.1)),
     };
+    let mods_label = attempt.mods_label.clone();
+    let failed = attempt.failed;
 
     commands.spawn((Camera2d::default(), ResultsRoot));
 
@@ -68,6 +71,24 @@ fn setup_results(
                 TextFont { font_size: 36.0, ..default() },
                 TextColor(Color::WHITE),
             ));
+
+            // Modificateurs actifs (affiché seulement si mods non vides)
+            if !mods_label.is_empty() {
+                parent.spawn((
+                    Text::new(format!("Mods : {}", mods_label)),
+                    TextFont { font_size: 20.0, ..default() },
+                    TextColor(Color::srgb(1.0, 0.65, 0.0)),
+                ));
+            }
+
+            // Indicateur de fail en mode No Fail
+            if failed {
+                parent.spawn((
+                    Text::new("FAIL"),
+                    TextFont { font_size: 22.0, ..default() },
+                    TextColor(Color::srgb(1.0, 0.2, 0.2)),
+                ));
+            }
 
             // Stats en ligne
             parent

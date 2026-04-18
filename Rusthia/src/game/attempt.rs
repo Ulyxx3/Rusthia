@@ -63,6 +63,15 @@ pub struct GameSettings {
 
     /// Afficher le compteur de FPS
     pub show_fps: bool,
+
+    /// Mod No Fail : la partie continue même quand la santé tombe à 0
+    pub no_fail: bool,
+
+    /// Vitesse de la map [0.5, 2.0] — multiplie attempt.speed au démarrage
+    pub map_speed: f32,
+
+    /// Échelle de l'interface [0.3, 1.5] — appliquée via UiScale
+    pub ui_scale: f32,
 }
 
 impl Default for GameSettings {
@@ -85,6 +94,9 @@ impl Default for GameSettings {
             volume_music: 1.0,
             volume_sfx: 1.0,
             show_fps: true,
+            no_fail: false,
+            map_speed: 1.0,
+            ui_scale: 0.5,
         }
     }
 }
@@ -160,6 +172,12 @@ pub struct AttemptState {
 
     /// L'audio Kira a-t-il été démarré ?
     pub audio_started: bool,
+
+    /// Étiquette des modificateurs actifs (ex: "NF • 1.5x") — vide si aucun mod
+    pub mods_label: String,
+
+    /// Mod No Fail actif pour cette session ?
+    pub no_fail_active: bool,
 }
 
 impl Default for AttemptState {
@@ -179,6 +197,8 @@ impl Default for AttemptState {
             paused: false,
             pregame_remaining_ms: 3000.0,
             audio_started: false,
+            mods_label: String::new(),
+            no_fail_active: false,
         }
     }
 }

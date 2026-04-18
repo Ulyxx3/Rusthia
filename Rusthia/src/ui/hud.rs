@@ -31,6 +31,7 @@ impl Plugin for HudPlugin {
 #[derive(Component)] struct ScoreText;
 #[derive(Component)] struct AccuracyText;
 #[derive(Component)] struct ProgressText;
+#[derive(Component)] struct ModsLabel;
 
 // ==============================================================================
 // SETUP
@@ -85,7 +86,7 @@ fn setup_hud(mut commands: Commands) {
                     ));
                 });
 
-            // ---- BAS : Barre de santé ----
+            // ---- BAS : Progress + Mods ----
             parent
                 .spawn(Node {
                     flex_direction: FlexDirection::Column,
@@ -99,6 +100,14 @@ fn setup_hud(mut commands: Commands) {
                         Text::new("0:00"),
                         TextFont { font_size: 12.0, ..default() },
                         TextColor(Color::srgba(0.5, 0.5, 0.7, 0.6)),
+                    ));
+
+                    // Indicateur de mods actifs (vide si aucun)
+                    bottom.spawn((
+                        ModsLabel,
+                        Text::new(""),
+                        TextFont { font_size: 14.0, ..default() },
+                        TextColor(Color::srgb(1.0, 0.65, 0.0)),
                     ));
                 });
         });
@@ -116,10 +125,11 @@ fn cleanup_hud(mut commands: Commands, query: Query<Entity, With<HudRoot>>) {
 
 fn update_hud(
     attempt: Res<AttemptState>,
-    mut score_q:    Query<&mut Text, (With<ScoreText>, Without<ComboText>, Without<AccuracyText>, Without<ProgressText>)>,
-    mut combo_q:    Query<&mut Text, (With<ComboText>, Without<ScoreText>, Without<AccuracyText>, Without<ProgressText>)>,
-    mut acc_q:      Query<&mut Text, (With<AccuracyText>, Without<ScoreText>, Without<ComboText>, Without<ProgressText>)>,
-    mut progress_q: Query<&mut Text, (With<ProgressText>, Without<ScoreText>, Without<ComboText>, Without<AccuracyText>)>,
+    mut score_q:    Query<&mut Text, (With<ScoreText>, Without<ComboText>, Without<AccuracyText>, Without<ProgressText>, Without<ModsLabel>)>,
+    mut combo_q:    Query<&mut Text, (With<ComboText>, Without<ScoreText>, Without<AccuracyText>, Without<ProgressText>, Without<ModsLabel>)>,
+    mut acc_q:      Query<&mut Text, (With<AccuracyText>, Without<ScoreText>, Without<ComboText>, Without<ProgressText>, Without<ModsLabel>)>,
+    mut progress_q: Query<&mut Text, (With<ProgressText>, Without<ScoreText>, Without<ComboText>, Without<AccuracyText>, Without<ModsLabel>)>,
+    mut mods_q:     Query<&mut Text, (With<ModsLabel>, Without<ScoreText>, Without<ComboText>, Without<AccuracyText>, Without<ProgressText>)>,
 ) {
     // Score
     for mut t in score_q.iter_mut() {
@@ -141,8 +151,13 @@ fn update_hud(
     }
 
     for mut t in progress_q.iter_mut() {
-        let total_secs = (attempt.progress_ms / 1000.0) as u32;
-        **t = format!("{}:{:02}", total_secs / 60, total_secs % 60);
+        let secs = (attempt.progress_ms / 1000.0).max(0.0) as u32;
+        **t = format!("{}:{:02}", secs / 60, secs % 60);
+    }
+
+    // Mods actifs
+    for mut t in mods_q.iter_mut() {
+        **t = attempt.mods_label.clone();
     }
 }
 

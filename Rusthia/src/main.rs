@@ -60,7 +60,7 @@ fn main() {
             ui::UiPlugin,
         ))
         .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(UiScale(0.5)) // L'interface entière est divisée par 2
+        .insert_resource(UiScale(0.5)) // Valeur par défaut — synchronisée depuis GameSettings dans le menu
         // Gestion du curseur selon l'état
         .add_systems(Update, (manage_cursor_visibility, apply_custom_font))
         .run();

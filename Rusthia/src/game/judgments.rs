@@ -15,12 +15,17 @@
 use bevy::prelude::*;
 use bevy::input::mouse::MouseMotion;
 use crate::{
+    audio::KiraManager,
     game::{
         attempt::{AttemptState, GameSettings},
         spawner::{NoteHitEvent, NoteMissEvent, NoteComponent},
     },
     map::types::{HIT_WINDOW_MS, GRID_SIZE, CURSOR_SIZE},
 };
+
+// Sons SFX embarqués dans le binaire au moment de la compilation
+static HIT_SFX:  &[u8] = include_bytes!("../../assets/sounds/hit.mp3");
+static FAIL_SFX: &[u8] = include_bytes!("../../assets/sounds/fail.mp3");
 
 // ==============================================================================
 // RESSOURCE CURSEUR
@@ -118,6 +123,7 @@ pub fn update_health(
     mut hit_events: EventReader<NoteHitEvent>,
     mut miss_events: EventReader<NoteMissEvent>,
     mut next_state: ResMut<NextState<crate::GameState>>,
+    mut kira: ResMut<KiraManager>,
 ) {
     for _ in hit_events.read() {
         // HIT: step descend (récompense), health monte
@@ -127,6 +133,7 @@ pub fn update_health(
         attempt.best_combo = attempt.best_combo.max(attempt.combo);
         attempt.hits += 1;
         attempt.score += 100 * attempt.combo as i64;
+        kira.play_sfx(HIT_SFX);
     }
 
     for _ in miss_events.read() {
@@ -140,7 +147,20 @@ pub fn update_health(
     // Fail si santé épuisée
     if attempt.health <= 0.0 && !attempt.failed {
         attempt.failed = true;
-        next_state.set(crate::GameState::Results);
+        kira.play_sfx(FAIL_SFX);
+
+        if attempt.no_fail_active {
+            // No Fail : bloquer la santé à 1 et continuer la partie
+            attempt.health = 1.0;
+        } else {
+            // Fail normal : aller à l'écran résultats
+            next_state.set(crate::GameState::Results);
+        }
+    }
+
+    // En mode No Fail : la santé ne peut pas descendre sous 1 après le premier fail
+    if attempt.no_fail_active && attempt.failed && attempt.health < 1.0 {
+        attempt.health = 1.0;
     }
 }
 

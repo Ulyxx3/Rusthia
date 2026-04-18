@@ -168,7 +168,10 @@ fn check_game_end(
     kira: Res<KiraManager>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if attempt.failed { return; } // Déjà géré par update_health
+    // En mode normal, le fail est géré par update_health avec transition directe
+    // En mode No Fail, attempt.failed peut être true mais la partie continue
+    if attempt.failed && !attempt.no_fail_active { return; }
+
     let Some(map) = map_res else { return };
 
     let all_notes_done = attempt.next_spawn_index >= map.0.notes.len();
@@ -188,7 +191,7 @@ fn save_score_on_end(
     map_res: Option<Res<ActiveMap>>,
 ) {
     if let Some(map) = map_res {
-        save_manager.submit_result(&map.0.id, attempt.score, attempt.best_combo, attempt.accuracy());
-        info!("Score enregistré : {}", attempt.score);
+        save_manager.submit_result(&map.0.id, attempt.score, attempt.best_combo, attempt.accuracy(), &attempt.mods_label);
+        info!("Score enregistré : {} (mods: '{}')", attempt.score, attempt.mods_label);
     }
 }

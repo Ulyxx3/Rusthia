@@ -19,11 +19,14 @@ pub struct SaveData {
     pub scores: HashMap<String, MapRecord>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct MapRecord {
     pub best_score: i64,
     pub best_combo: u32,
     pub best_accuracy: f64,
+    /// Mods utilisés lors du meilleur score (ex: "NF • 1.5x"), vide si aucun
+    #[serde(default)]
+    pub best_score_mods: String,
 }
 
 /// Ressource permettant de gérer la sauvegarde en mémoire
@@ -53,13 +56,14 @@ impl SaveManager {
     }
 
     /// Enregistrer un record potentiel pour une map donnee
-    pub fn submit_result(&mut self, map_id: &str, score: i64, combo: u32, accuracy: f64) {
+    pub fn submit_result(&mut self, map_id: &str, score: i64, combo: u32, accuracy: f64, mods_label: &str) {
         let entry = self.data.scores.entry(map_id.to_string()).or_default();
         let mut updated = false;
 
         if score > entry.best_score {
             entry.best_score = score;
             entry.best_accuracy = accuracy;
+            entry.best_score_mods = mods_label.to_string();
             updated = true;
         }
         if combo > entry.best_combo {
@@ -75,7 +79,7 @@ impl SaveManager {
 
     /// Obtenir le record d'une map s'il existe
     pub fn get_record(&self, map_id: &str) -> Option<MapRecord> {
-        self.data.scores.get(map_id).copied()
+        self.data.scores.get(map_id).cloned()
     }
 }
 
